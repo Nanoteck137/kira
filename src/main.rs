@@ -20,6 +20,13 @@ fn main() {
     let file_data = read_file_to_vec(path);
     println!("Data: {}", file_data.len());
 
-    let res = elf::Elf::parse(&file_data).unwrap();
-    println!("Elf: {:#?}", res);
+    let e = elf::Elf::parse(&file_data).unwrap();
+    println!("Elf: {:#?}", e);
+
+    let memory = vec![0; 100 * 1024 * 1024];
+
+    for program_header in e.program_header_iter() {
+        // let data = e.program_header_data(program_header);
+        println!("{:#x?}", program_header);
+    }
 }

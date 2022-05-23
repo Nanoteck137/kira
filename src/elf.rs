@@ -35,6 +35,9 @@ pub enum ElfError {
 
     /// Failed to cast 'num_section_header_entries'
     NumSectionHeaderEntriesConvertionError,
+
+    /// Invalid byte buffer size for ´ProgramHeader::parse´
+    InvalidProgramHeaderBufferSize,
 }
 
 type Result<T> = std::result::Result<T, ElfError>;
@@ -157,7 +160,154 @@ struct Header {
 }
 
 #[derive(Debug)]
-pub struct Elf {
+enum ProgramHeaderTyp {
+    /// Program header table entry unused
+    Null,
+
+    /// Loadable segment
+    Load,
+
+    /// Dynamic linking information
+    Dynamic,
+
+    /// Interpreter information
+    Interp,
+
+    /// Auxiliary information
+    Note,
+
+    /// Reserved
+    Shlib,
+
+    /// Segment containing program header table itself
+    ProgramHeader,
+
+    /// Thread-Local Storage template
+    ThreadLocalStorage,
+
+    /// Reserved inclusive range. Operating system specific
+    OperatingSystem(u32),
+
+    /// Reserved inclusive range. Processor specific
+    Processor(u32),
+
+    /// Unknown
+    Unknown(u32),
+}
+
+impl ProgramHeaderTyp {
+    fn parse(value: u32) -> Self {
+        return match value {
+            0x00000000 => Self::Null,
+            0x00000001 => Self::Load,
+            0x00000002 => Self::Dynamic,
+            0x00000003 => Self::Interp,
+            0x00000004 => Self::Note,
+            0x00000005 => Self::Shlib,
+            0x00000006 => Self::ProgramHeader,
+            0x00000007 => Self::ThreadLocalStorage,
+
+            0x60000000..=0x6FFFFFFF => Self::OperatingSystem(value),
+            0x70000000..=0x7FFFFFFF => Self::Processor(value),
+
+            _ => Self::Unknown(value),
+        };
+    }
+}
+
+#[derive(Debug)]
+pub struct ProgramHeader {
+    typ: ProgramHeaderTyp,
+    flags: u32,
+
+    offset: u64,
+
+    vaddr: u64,
+    paddr: u64,
+
+    file_size: u64,
+    memory_size: u64,
+
+    alignment: u64,
+}
+
+impl ProgramHeader {
+    fn parse(bytes: &[u8]) -> Result<ProgramHeader> {
+        if bytes.len() < 56 {
+            return Err(ElfError::InvalidProgramHeaderBufferSize);
+        }
+
+        let typ = u32::from_le_bytes(
+            bytes[0..4].try_into()
+                .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+        let typ = ProgramHeaderTyp::parse(typ);
+
+        let flags = u32::from_le_bytes(
+            bytes[4..8].try_into()
+                .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+
+        let offset = u64::from_le_bytes(
+            bytes[8..16].try_into()
+                .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+
+        let vaddr = u64::from_le_bytes(
+            bytes[16..24].try_into()
+                .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+
+        let paddr = u64::from_le_bytes(
+            bytes[24..32].try_into()
+                .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+
+        let file_size = u64::from_le_bytes(
+            bytes[32..40].try_into()
+                .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+
+        let memory_size = u64::from_le_bytes(
+            bytes[40..48].try_into()
+                .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+
+        let alignment = u64::from_le_bytes(
+            bytes[48..56].try_into()
+                .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+
+        Ok(ProgramHeader {
+            typ,
+            flags,
+
+            offset,
+
+            vaddr,
+            paddr,
+
+            file_size,
+            memory_size,
+
+            alignment,
+        })
+    }
+}
+
+pub struct ProgramHeaderIter<'a> {
+    elf: &'a Elf<'a>,
+    current_index: usize,
+}
+
+impl<'a> Iterator for ProgramHeaderIter<'a> {
+    type Item = ProgramHeader;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_index >= self.elf.program_header.num_entries {
+            return None;
+        }
+
+        let program_header = self.elf.program_header(self.current_index).ok()?;
+        self.current_index += 1;
+
+        Some(program_header)
+    }
+}
+
+pub struct Elf<'a> {
+    bytes: &'a [u8],
     class: Class,
     data: Data,
     os_abi: OsAbi,
@@ -172,8 +322,29 @@ pub struct Elf {
     string_table_index: usize,
 }
 
-impl Elf {
-    pub fn parse(bytes: &[u8]) -> Result<Self> {
+impl<'a> std::fmt::Debug for Elf<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) ->
+        std::result::Result<(), std::fmt::Error>
+    {
+        f.debug_struct("Elf")
+            .field("class", &self.class)
+            .field("data", &self.data)
+            .field("os_abi", &self.os_abi)
+            .field("os_abi_version", &self.os_abi_version)
+            .field("typ", &self.typ)
+            .field("machine", &self.machine)
+            .field("entry", &format_args!("{:#x}", self.entry))
+            .field("program_header", &self.program_header)
+            .field("section_header", &self.section_header)
+            .field("string_table_index", &self.string_table_index)
+            .finish()
+    }
+}
+
+impl<'a> Elf<'a> {
+    pub fn parse(bytes: &'a [u8]) -> Result<Self> {
+        // TODO(patrik): Add length checks
+
         if &bytes[0..4] != b"\x7fELF" {
             return Err(ElfError::InvalidMagic);
         }
@@ -268,6 +439,8 @@ impl Elf {
         };
 
         Ok(Self {
+            bytes,
+
             class,
             data,
             os_abi,
@@ -283,6 +456,19 @@ impl Elf {
         })
     }
 
-    pub fn section(index: usize) {
+    pub fn program_header(&self, index: usize) -> Result<ProgramHeader> {
+        let start = self.program_header.offset +
+            index * self.program_header.entry_size;
+        let end = start + self.program_header.entry_size;
+        let bytes = &self.bytes[start..end];
+
+        ProgramHeader::parse(bytes)
+    }
+
+    pub fn program_header_iter(&self) -> ProgramHeaderIter {
+        ProgramHeaderIter {
+            elf: self,
+            current_index: 0
+        }
     }
 }
