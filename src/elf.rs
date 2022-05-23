@@ -159,8 +159,8 @@ struct Header {
     num_entries: usize,
 }
 
-#[derive(Copy, Clone, Debug)]
-enum ProgramHeaderTyp {
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum ProgramHeaderTyp {
     /// Program header table entry unused
     Null,
 
@@ -288,6 +288,38 @@ impl ProgramHeader {
 
             alignment,
         })
+    }
+
+    pub fn typ(&self) -> ProgramHeaderTyp {
+        self.typ
+    }
+
+    pub fn flags(&self) -> u32 {
+        self.flags
+    }
+
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    pub fn vaddr(&self) -> u64 {
+        self.vaddr
+    }
+
+    pub fn paddr(&self) -> u64 {
+        self.paddr
+    }
+
+    pub fn file_size(&self) -> usize {
+        self.file_size
+    }
+
+    pub fn memory_size(&self) -> u64 {
+        self.memory_size
+    }
+
+    pub fn alignment(&self) -> u64 {
+        self.alignment
     }
 }
 
