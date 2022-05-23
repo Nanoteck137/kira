@@ -159,7 +159,7 @@ struct Header {
     num_entries: usize,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 enum ProgramHeaderTyp {
     /// Program header table entry unused
     Null,
@@ -215,17 +215,17 @@ impl ProgramHeaderTyp {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct ProgramHeader {
     typ: ProgramHeaderTyp,
     flags: u32,
 
-    offset: u64,
+    offset: usize,
 
     vaddr: u64,
     paddr: u64,
 
-    file_size: u64,
+    file_size: usize,
     memory_size: u64,
 
     alignment: u64,
@@ -249,6 +249,8 @@ impl ProgramHeader {
         let offset = u64::from_le_bytes(
             bytes[8..16].try_into()
                 .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+        // TODO(patrik): Add a try_into here
+        let offset = offset as usize;
 
         let vaddr = u64::from_le_bytes(
             bytes[16..24].try_into()
@@ -261,6 +263,8 @@ impl ProgramHeader {
         let file_size = u64::from_le_bytes(
             bytes[32..40].try_into()
                 .map_err(|e| ElfError::TryFromSliceFailed(e))?);
+        // TODO(patrik): Add a try_into here
+        let file_size = file_size as usize;
 
         let memory_size = u64::from_le_bytes(
             bytes[40..48].try_into()
@@ -470,5 +474,15 @@ impl<'a> Elf<'a> {
             elf: self,
             current_index: 0
         }
+    }
+
+    pub fn program_header_data(&self, program_header: ProgramHeader)
+        -> Result<&[u8]>
+    {
+        let start = program_header.offset;
+        let end = start + program_header.file_size;
+
+        // TODO(patrik): Add Bound checks
+        Ok(&self.bytes[start..end])
     }
 }

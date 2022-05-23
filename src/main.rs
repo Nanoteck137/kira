@@ -26,7 +26,8 @@ fn main() {
     let memory = vec![0; 100 * 1024 * 1024];
 
     for program_header in e.program_header_iter() {
-        // let data = e.program_header_data(program_header);
-        println!("{:#x?}", program_header);
+        let data = e.program_header_data(program_header)
+            .expect("Failed to get program header data");
+        println!("{:#x?}: {:#x}", program_header, data.len());
     }
 }
