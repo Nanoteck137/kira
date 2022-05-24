@@ -4,7 +4,10 @@ use std::path::Path;
 use std::fs::File;
 use std::io::Read;
 
+use memory::{ Memory, Mmu };
+
 mod elf;
+mod memory;
 
 fn read_file_to_vec<P>(path: P) -> Vec<u8>
     where P: AsRef<Path>
@@ -153,6 +156,7 @@ impl Hart {
 
                 let raw_imm = (inst & !0xfff) >> 12;
                 println!("Raw imm: {:#x}", raw_imm);
+
                 let imm1912 = (raw_imm >> 0) & 0b11111111;
                 let imm11 = (raw_imm >> 8) & 0b1;
                 let imm101 = (raw_imm >> 9) & 0b1111111111;
@@ -172,109 +176,6 @@ impl Hart {
     }
 }
 
-struct Memory {
-    memory: Vec<u8>,
-}
-
-impl Memory {
-    fn new(size: usize) -> Self {
-        Self {
-            memory: vec![0; size],
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.memory.len()
-    }
-
-    fn write_u8(&mut self, addr: usize, value: u8) {
-        self.memory[addr] = value;
-    }
-
-    fn write_u16(&mut self, addr: usize, value: u16) {
-        self.memory[addr + 0] = ((value >> 0)  & 0xff) as u8;
-        self.memory[addr + 1] = ((value >> 8)  & 0xff) as u8;
-    }
-
-    fn write_u32(&mut self, addr: usize, value: u32) {
-        self.memory[addr + 0] = ((value >> 0)  & 0xff) as u8;
-        self.memory[addr + 1] = ((value >> 8)  & 0xff) as u8;
-        self.memory[addr + 2] = ((value >> 16) & 0xff) as u8;
-        self.memory[addr + 3] = ((value >> 24) & 0xff) as u8;
-    }
-
-    fn write_u64(&mut self, addr: usize, value: u64) {
-        self.memory[addr + 0] = ((value >> 0)  & 0xff) as u8;
-        self.memory[addr + 1] = ((value >> 8)  & 0xff) as u8;
-        self.memory[addr + 2] = ((value >> 16) & 0xff) as u8;
-        self.memory[addr + 3] = ((value >> 24) & 0xff) as u8;
-        self.memory[addr + 4] = ((value >> 32) & 0xff) as u8;
-        self.memory[addr + 5] = ((value >> 40) & 0xff) as u8;
-        self.memory[addr + 6] = ((value >> 48) & 0xff) as u8;
-        self.memory[addr + 7] = ((value >> 56) & 0xff) as u8;
-    }
-
-    fn read_u8(&self, addr: usize) -> u8 {
-        self.memory[addr]
-    }
-
-    fn read_u16(&self, addr: usize) -> u16 {
-        let v0 = self.memory[addr + 0] as u16;
-        let v1 = self.memory[addr + 1] as u16;
-
-        (v1 << 8) | v0
-    }
-
-    fn read_u32(&self, addr: usize) -> u32 {
-        let v0 = self.memory[addr + 0] as u32;
-        let v1 = self.memory[addr + 1] as u32;
-        let v2 = self.memory[addr + 2] as u32;
-        let v3 = self.memory[addr + 3] as u32;
-
-        (v3 << 24) | (v2 << 16) | (v1 << 8) | v0
-    }
-
-    fn read_u64(&self, addr: usize) -> u64 {
-        let v0 = self.memory[addr + 0] as u64;
-        let v1 = self.memory[addr + 1] as u64;
-        let v2 = self.memory[addr + 2] as u64;
-        let v3 = self.memory[addr + 3] as u64;
-        let v4 = self.memory[addr + 4] as u64;
-        let v5 = self.memory[addr + 5] as u64;
-        let v6 = self.memory[addr + 6] as u64;
-        let v7 = self.memory[addr + 7] as u64;
-
-        (v7 << 56) | (v6 << 48) | (v5 << 40) | (v4 << 32) |
-        (v3 << 24) | (v2 << 16) | (v1 << 8)  | v0
-    }
-}
-
-const MEMORY_OFFSET: u64 = 0x80000000;
-
-struct Mmu {
-    memory: Memory,
-}
-
-impl Mmu {
-    fn new(memory: Memory) -> Self {
-        Self {
-            memory
-        }
-    }
-
-    fn read_u32(&self, addr: u64) -> u32 {
-        if addr >= MEMORY_OFFSET &&
-            addr < MEMORY_OFFSET + self.memory.len() as u64
-        {
-            let addr = addr.wrapping_sub(MEMORY_OFFSET);
-            let addr: usize = addr.try_into().unwrap();
-
-            return self.memory.read_u32(addr);
-        }
-
-        panic!("Unknown addr: {:#x}", addr);
-    }
-}
 
 fn main() {
     let path = "/opt/riscv/target/share/riscv-tests/isa/rv64ui-v-add";
@@ -284,12 +185,8 @@ fn main() {
     let e = elf::Elf::parse(&file_data).unwrap();
     println!("Elf: {:#?}", e);
 
-    let mut memory = Memory::new(100 * 1024 * 1024);
-
-    let mut write_memory = |addr: u64, val: u8| {
-        let memory_addr = addr.wrapping_sub(MEMORY_OFFSET);
-        memory.write_u8(memory_addr as usize, val);
-    };
+    let memory = Memory::new(100 * 1024 * 1024);
+    let mut mmu = Mmu::new(memory);
 
     for program_header in e.program_header_iter() {
         if program_header.typ() == elf::ProgramHeaderTyp::Load {
@@ -298,18 +195,18 @@ fn main() {
             println!("{:#x?}: {:#x}", program_header, data.len());
 
             for index in 0..data.len() {
-                write_memory(program_header.vaddr() + index as u64, data[index]);
+                let addr = program_header.vaddr() + index as u64;
+                let value = data[index];
+                mmu.write_u8(addr, value);
             }
         }
     }
 
-    let mmu = Mmu::new(memory);
     let mut hart = Hart::new(mmu);
 
     hart.set_reg(Reg::X0, 0x1337);
     hart.set_reg(Reg::Pc, e.entry());
-    // hart.set_reg(Reg::Pc, 0x800020f4);
-    //
+
     println!("X0: {:#x}", hart.reg(Reg::X0));
     hart.step();
 }
