@@ -48,11 +48,12 @@ fn main() {
     }
 
     let mut hart = Hart::new(mmu);
-
-    hart.set_reg(Reg::X0, 0x1337);
     hart.set_reg(Reg::Pc, e.entry());
-
-    println!("X0: {:#x}", hart.reg(Reg::X0));
+    hart.set_reg(Reg::X1, 0x1337);
     hart.dump();
-    hart.step();
+
+    loop {
+        hart.step();
+        // hart.dump();
+    }
 }

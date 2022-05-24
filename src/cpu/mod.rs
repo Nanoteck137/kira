@@ -6,7 +6,7 @@ use instruction::Instruction;
 
 mod instruction;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Reg {
     X0,
     X1,
@@ -148,7 +148,9 @@ impl Hart {
 
     /// Set register inside the cpu
     pub fn set_reg(&mut self, reg: Reg, val: u64) {
-        self.registers[reg.index()] = val;
+        if reg != Reg::X0 {
+            self.registers[reg.index()] = val;
+        }
     }
 
     fn fetch_u32(&mut self) -> u32 {
@@ -160,8 +162,57 @@ impl Hart {
         res
     }
 
-    fn execute_instruction(&mut self, inst: Instruction) {
+    fn execute_instruction(&mut self, current_pc: u64, inst: Instruction) {
         println!("Executing CPU Instruction: {:x?}", inst);
+
+        match inst {
+            Instruction::Auipc { rd, imm } => {
+                let target = current_pc.wrapping_add(imm as i64 as u64);
+                self.set_reg(rd, target);
+            }
+
+            Instruction::Jal { rd, imm } => {
+                let target = current_pc.wrapping_add(imm as i64 as u64);
+                let return_address = self.reg(Reg::Pc);
+
+                self.set_reg(rd, return_address);
+                self.set_reg(Reg::Pc, target);
+            }
+
+            Instruction::Jalr { rd, rs1, imm } => {
+                let target = self.reg(rs1).wrapping_add(imm as i64 as u64);
+
+                let return_addr = self.reg(Reg::Pc);
+                self.set_reg(rd, return_addr);
+                self.set_reg(Reg::Pc, target);
+            }
+
+            Instruction::Addi { rd, rs1, imm } => {
+                let res = self.reg(rs1).wrapping_add(imm as i64 as u64);
+                self.set_reg(rd, res);
+            }
+
+            Instruction::Slli { rd, rs1, shamt } => {
+                // TODO(patrik): Wrapping?
+                let result = self.reg(rs1) << shamt;
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Add { rd, rs1, rs2 } => {
+                let result = self.reg(rs1).wrapping_add(self.reg(rs2));
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Csrrw { rd, rs1, csr } => {
+                println!("TODO: csrrw: {:?} {:?} {:#x}", rd, rs1, csr);
+            }
+
+            Instruction::Csrrs { rd, rs1, csr } => {
+                println!("TODO: csrrs: {:?} {:?} {:#x}", rd, rs1, csr);
+            }
+
+            _ => panic!("Not implemented: {:?}", inst),
+        }
     }
 
     pub fn step(&mut self) {
@@ -170,7 +221,7 @@ impl Hart {
         println!("{:#x}: {:#x}", pc, inst);
 
         let inst = Instruction::decode(inst);
-        self.execute_instruction(inst);
+        self.execute_instruction(pc, inst);
     }
 
     pub fn dump(&self) {
