@@ -2,7 +2,11 @@
 
 use crate::memory::Mmu;
 
-#[derive(Debug)]
+use instruction::Instruction;
+
+mod instruction;
+
+#[derive(Copy, Clone, Debug)]
 pub enum Reg {
     X0,
     X1,
@@ -81,6 +85,49 @@ impl Reg {
     }
 }
 
+impl From<u32> for Reg {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Reg::X0,
+            1 => Reg::X1,
+            2 => Reg::X2,
+            3 => Reg::X3,
+            4 => Reg::X4,
+            5 => Reg::X5,
+            6 => Reg::X6,
+            7 => Reg::X7,
+            8 => Reg::X8,
+            9 => Reg::X9,
+            10 => Reg::X10,
+            11 => Reg::X11,
+            12 => Reg::X12,
+            13 => Reg::X13,
+            14 => Reg::X14,
+            15 => Reg::X15,
+            16 => Reg::X16,
+            17 => Reg::X17,
+            18 => Reg::X18,
+            19 => Reg::X19,
+            20 => Reg::X20,
+            21 => Reg::X21,
+            22 => Reg::X22,
+            23 => Reg::X23,
+            24 => Reg::X24,
+            25 => Reg::X25,
+            26 => Reg::X26,
+            27 => Reg::X27,
+            28 => Reg::X28,
+            29 => Reg::X29,
+            30 => Reg::X30,
+            31 => Reg::X31,
+
+            32 => Reg::Pc,
+
+            _ => panic!("Unknown value: {}", value),
+        }
+    }
+}
+
 pub struct Hart {
     registers: [u64; 33],
     mmu: Mmu
@@ -113,38 +160,24 @@ impl Hart {
         res
     }
 
+    fn execute_instruction(&mut self, inst: Instruction) {
+        println!("Executing CPU Instruction: {:x?}", inst);
+    }
+
     pub fn step(&mut self) {
         let pc = self.reg(Reg::Pc);
         let inst = self.fetch_u32();
         println!("{:#x}: {:#x}", pc, inst);
 
-        let opcode = inst & 0b1111111;
-        println!("Opcode: 0b{:b}", opcode);
+        let inst = Instruction::decode(inst);
+        self.execute_instruction(inst);
+    }
 
-        match opcode {
-            0b1101111 => {
-                // JAL
-                let rd = (inst >> 7) & 0b11111;
-                println!("RD: {}", rd);
-
-                let raw_imm = (inst & !0xfff) >> 12;
-                println!("Raw imm: {:#x}", raw_imm);
-
-                let imm1912 = (raw_imm >> 0) & 0b11111111;
-                let imm11 = (raw_imm >> 8) & 0b1;
-                let imm101 = (raw_imm >> 9) & 0b1111111111;
-                let imm20 = (raw_imm >> 19) & 0b1;
-                let imm = (imm20 << 20) | (imm1912 << 12) | (imm11 << 11) | (imm101 << 1);
-                let imm = ((imm as i32) << 11) >> 11;
-                println!("Imm: {:#x}", imm);
-                println!("New PC: {:#x}", pc + imm as u64);
-
-                self.set_reg(Reg::Pc, pc + imm as u64);
-            }
-
-            _ => {
-                panic!("Unknown opcode: 0b{:b}", opcode);
-            }
+    pub fn dump(&self) {
+        for i in 0..32 {
+            if i % 4 == 0 && i != 0 { println!(); }
+            print!("x{:02}: {:016x} ", i, self.registers[i]);
         }
+        println!("Pc: {:016x}", self.reg(Reg::Pc));
     }
 }

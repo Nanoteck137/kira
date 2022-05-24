@@ -53,5 +53,6 @@ fn main() {
     hart.set_reg(Reg::Pc, e.entry());
 
     println!("X0: {:#x}", hart.reg(Reg::X0));
+    hart.dump();
     hart.step();
 }
