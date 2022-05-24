@@ -517,4 +517,8 @@ impl<'a> Elf<'a> {
         // TODO(patrik): Add Bound checks
         Ok(&self.bytes[start..end])
     }
+
+    pub fn entry(&self) -> u64 {
+        self.entry
+    }
 }
