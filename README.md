@@ -35,108 +35,108 @@
 | J    | imm[20\|10:1\|11\|19:12] | rd   | opcode |
 
 ## LUI - 0b0110111
-| Name | Type | Funct3 | Funct7  |
-| ---- | ---- | ------ | ------- |
-| LUI  |      | n/a    | n/a     |
+| Name | Type |
+| ---- | ---- |
+| LUI  | U    |
 
 ## AUIPC - 0b0010111
-| Name  | Funct3 | Funct7  |
-| ----- | ------ | ------- |
-| AUIPC | n/a    | n/a     |
+| Name  | Type |
+| ----- | ---- |
+| AUIPC | U    |
 
 ## JAL - 0b1101111
-| Name | Funct3 | Funct7  |
-| ---- | ------ | ------- |
-| JAL  | n/a    | n/a     |
+| Name | Type | Funct3 | Funct7  |
+| ---- | ---- | ------ | ------- |
+| JAL  | J    | n/a    | n/a     |
 
 ## JALR - 0b1100111
-| Name | Funct3 | Funct7  |
-| ---- | ------ | ------- |
-| JALR | 000    | n/a     |
+| Name | Type | Funct3 | Funct7  |
+| ---- | ---- | ------ | ------- |
+| JALR | I    | 000    | n/a     |
 
 ## BRANCH - 0b1100011
-| Name | Funct3 | Funct7  |
-| ---- | ------ | ------- |
-| BEQ  | 000    | n/a     |
-| BNE  | 001    | n/a     |
-| BLT  | 100    | n/a     |
-| BGE  | 101    | n/a     |
-| BLTU | 110    | n/a     |
-| BGEU | 111    | n/a     |
+| Name | Type | Funct3 | Funct7  |
+| ---- | ---- | ------ | ------- |
+| BEQ  | B    | 000    | n/a     |
+| BNE  | B    | 001    | n/a     |
+| BLT  | B    | 100    | n/a     |
+| BGE  | B    | 101    | n/a     |
+| BLTU | B    | 110    | n/a     |
+| BGEU | B    | 111    | n/a     |
 
 ## LOAD - 0b0000011
-| Name | Funct3 | Funct7  |
-| ---- | ------ | ------- |
-| LB   | 000    | n/a     |
-| LH   | 001    | n/a     |
-| LW   | 010    | n/a     |
-| LBU  | 100    | n/a     |
-| LHU  | 101    | n/a     |
-| LWU  | 110    | n/a     |
-| LD   | 011    | n/a     |
+| Name | Type | Funct3 | Funct7  |
+| ---- | ---- | ------ | ------- |
+| LB   | I    | 000    | n/a     |
+| LH   | I    | 001    | n/a     |
+| LW   | I    | 010    | n/a     |
+| LBU  | I    | 100    | n/a     |
+| LHU  | I    | 101    | n/a     |
+| LWU  | I    | 110    | n/a     |
+| LD   | I    | 011    | n/a     |
 
 ## STORE - 0b0100011
-| Name | Funct3 | Funct7  |
-| ---- | ------ | ------- |
-| SB   | 000    | n/a     |
-| SH   | 001    | n/a     |
-| SW   | 010    | n/a     |
-| SD   | 011    | n/a     |
+| Name | Type | Funct3 | Funct7  |
+| ---- | ---- | ------ | ------- |
+| SB   | S    | 000    | n/a     |
+| SH   | S    | 001    | n/a     |
+| SW   | S    | 010    | n/a     |
+| SD   | S    | 011    | n/a     |
 
 ## OP-IMM - 0b0010011
-| Name  | Funct3 | Funct7  |
-| ----- | ------ | ------- |
-| ADDI  | 000    | n/a     |
-| SLTI  | 010    | n/a     |
-| SLTIU | 011    | n/a     |
-| XORI  | 100    | n/a     |
-| ORI   | 110    | n/a     |
-| ANDI  | 111    | n/a     |
-| SLLI  | 001    | 0000000 |
-| SRLI  | 101    | 0000000 |
-| SRAI  | 101    | 0100000 |
+| Name  | Type | Funct3 | Funct7  |
+| ----- | ---- | ------ | ------- |
+| ADDI  | I    | 000    | n/a     |
+| SLTI  | I    | 010    | n/a     |
+| SLTIU | I    | 011    | n/a     |
+| XORI  | I    | 100    | n/a     |
+| ORI   | I    | 110    | n/a     |
+| ANDI  | I    | 111    | n/a     |
+| SLLI  | I*   | 001    | 0000000 |
+| SRLI  | I*   | 101    | 0000000 |
+| SRAI  | I*   | 101    | 0100000 |
 
 ## OP-IMM-32 - 0b0011011
-| Name  | Funct3 | Funct7  |
-| ----- | ------ | ------- |
-| ADDIW | 000    | n/a     |
-| SLLIW | 001    | 0000000 |
-| SRLIW | 101    | 0000000 |
-| SRAIW | 101    | 0100000 |
+| Name  | Type | Funct3 | Funct7  |
+| ----- | ---- | ------ | ------- |
+| ADDIW | I    | 000    | n/a     |
+| SLLIW | I*   | 001    | 0000000 |
+| SRLIW | I*   | 101    | 0000000 |
+| SRAIW | I*   | 101    | 0100000 |
 
 ## OP - 0b0110011
-| Name | Funct3 | Funct7  |
-| ---- | ------ | ------- |
-| ADD  | 000    | 0000000 |
-| SUB  | 000    | 0100000 |
-| SLL  | 001    | 0000000 |
-| SLT  | 010    | 0000000 |
-| SLTU | 011    | 0000000 |
-| XOR  | 100    | 0000000 |
-| SRL  | 101    | 0000000 |
-| SRA  | 101    | 0100000 |
-| OR   | 110    | 0000000 |
-| AND  | 111    | 0000000 |
+| Name | Type | Funct3 | Funct7  |
+| ---- | ---- | ------ | ------- |
+| ADD  | R    | 000    | 0000000 |
+| SUB  | R    | 000    | 0100000 |
+| SLL  | R    | 001    | 0000000 |
+| SLT  | R    | 010    | 0000000 |
+| SLTU | R    | 011    | 0000000 |
+| XOR  | R    | 100    | 0000000 |
+| SRL  | R    | 101    | 0000000 |
+| SRA  | R    | 101    | 0100000 |
+| OR   | R    | 110    | 0000000 |
+| AND  | R    | 111    | 0000000 |
 
 ## OP-32 - 0b0111011
-| Name | Funct3 | Funct7  |
-| ---- | ------ | ------- |
-| ADDW | 000    | 0000000 |
-| SUBW | 000    | 0100000 |
-| SLLW | 001    | 0000000 |
-| SRLW | 101    | 0000000 |
-| SRAW | 101    | 0100000 |
+| Name | Type | Funct3 | Funct7  |
+| ---- | ---- | ------ | ------- |
+| ADDW | R    | 000    | 0000000 |
+| SUBW | R    | 000    | 0100000 |
+| SLLW | R    | 001    | 0000000 |
+| SRLW | R    | 101    | 0000000 |
+| SRAW | R    | 101    | 0100000 |
 
-## MISC-MEM - 0b0001111
-| Name  | Funct3 | Funct7  |
-| ----- | ------ | ------- |
-| FENCE | 000    | n/a     |
+## MISC-MEM - 0b000111
+| Name  | Type | Funct3 |
+| ----- | ---- | ------ |
+| FENCE | I    | 000    |
 
 ## SYSTEM - 0b1110011
-| Name   | Funct3 | Funct7  |
-| ------ | ------ | ------- |
-| ECALL  | 000    | n/a     |
-| EBREAK | 000    | n/a     |
+| Name   | Type | Funct3 | Funct7  |
+| ------ | ---- | ------ | ------- |
+| ECALL  | *    | 000    | n/a     |
+| EBREAK | *    | 000    | n/a     |
 
 
 ---
