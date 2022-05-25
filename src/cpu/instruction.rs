@@ -3,6 +3,53 @@
 use super::Reg;
 
 #[derive(Debug)]
+enum Error {
+    UnknownOpcode(u32),
+}
+
+type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug)]
+enum Opcode {
+    Lui,
+    Auipc,
+    Jal,
+    Jalr,
+    Branch,
+    Load,
+    Store,
+    OpImm,
+    OpImm32,
+    Op,
+    Op32,
+    MiscMem,
+    System,
+}
+
+impl TryFrom<u32> for Opcode {
+    type Error = Error;
+    fn try_from(value: u32) -> Result<Self> {
+        return match value {
+            0b0110111 => Ok(Self::Lui),
+            0b0010111 => Ok(Self::Auipc),
+            0b1101111 => Ok(Self::Jal),
+            0b1100111 => Ok(Self::Jalr),
+            0b1100011 => Ok(Self::Branch),
+            0b0000011 => Ok(Self::Load),
+            0b0100011 => Ok(Self::Store),
+            0b0010011 => Ok(Self::OpImm),
+            0b0011011 => Ok(Self::OpImm32),
+            0b0110011 => Ok(Self::Op),
+            0b0111011 => Ok(Self::Op32),
+            0b0001111 => Ok(Self::MiscMem),
+            0b1110011 => Ok(Self::System),
+
+            _ => Err(Error::UnknownOpcode(value)),
+        };
+    }
+}
+
+#[derive(Debug)]
 pub enum Instruction {
     /// Opcode: 0b0010111
     Auipc { rd: Reg, imm: i32 },
@@ -23,7 +70,6 @@ pub enum Instruction {
     Slli  { rd: Reg, rs1: Reg, shamt: i32 },
     Srli  { rd: Reg, rs1: Reg, shamt: i32 },
     Srai  { rd: Reg, rs1: Reg, shamt: i32 },
-
 
     /// Opcode: 0b0110011
     Add  { rd: Reg, rs1: Reg, rs2: Reg },
@@ -50,6 +96,8 @@ impl Instruction {
     pub fn decode(inst: u32) -> Self {
         let opcode = inst & 0x7f;
         let typ = OPCODE_TO_TYPE_LUT[opcode as usize];
+        println!("Opcode: {:?}", Opcode::try_from(opcode));
+
         if let Some(typ) = typ {
             let test = JType::from(inst);
 
