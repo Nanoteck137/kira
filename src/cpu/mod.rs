@@ -166,6 +166,7 @@ impl Hart {
         println!("Executing CPU Instruction: {:x?}", inst);
 
         match inst {
+            /*
             Instruction::Auipc { rd, imm } => {
                 let target = current_pc.wrapping_add(imm as i64 as u64);
                 self.set_reg(rd, target);
@@ -210,6 +211,7 @@ impl Hart {
             Instruction::Csrrs { rd, rs1, csr } => {
                 println!("TODO: csrrs: {:?} {:?} {:#x}", rd, rs1, csr);
             }
+            */
 
             _ => panic!("Not implemented: {:?}", inst),
         }
@@ -220,8 +222,10 @@ impl Hart {
         let inst = self.fetch_u32();
         println!("{:#x}: {:#x}", pc, inst);
 
-        let inst = Instruction::decode(inst);
-        self.execute_instruction(pc, inst);
+        match Instruction::decode(inst) {
+            Ok(inst) => self.execute_instruction(pc, inst),
+            Err(e) => panic!("Failed to decode inst: {:?}", e),
+        }
     }
 
     pub fn dump(&self) {
