@@ -166,7 +166,6 @@ impl Hart {
         println!("Executing CPU Instruction: {:x?}", inst);
 
         match inst {
-            /*
             Instruction::Auipc { rd, imm } => {
                 let target = current_pc.wrapping_add(imm as i64 as u64);
                 self.set_reg(rd, target);
@@ -204,6 +203,7 @@ impl Hart {
                 self.set_reg(rd, result);
             }
 
+            /*
             Instruction::Csrrw { rd, rs1, csr } => {
                 println!("TODO: csrrw: {:?} {:?} {:#x}", rd, rs1, csr);
             }
@@ -213,7 +213,7 @@ impl Hart {
             }
             */
 
-            _ => panic!("Not implemented: {:?}", inst),
+            _ => panic!("Not implemented: {:x?}", inst),
         }
     }
 

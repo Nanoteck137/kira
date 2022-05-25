@@ -5,6 +5,8 @@ use super::Reg;
 #[derive(Debug)]
 pub enum Error {
     UnknownOpcode(u32),
+    UnknownInstruction(Opcode, u32),
+    Test
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -137,26 +139,221 @@ impl Instruction {
         println!("Opcode: {:?}", opcode);
 
         return match opcode {
-            Opcode::Lui => panic!("Not implemented: {:?}", opcode),
-            Opcode::Auipc => panic!("Not implemented: {:?}", opcode),
+            Opcode::Lui => {
+                let data = UType::from(inst);
+                Ok(Self::Lui { rd: data.rd, imm: data.imm })
+            },
+
+            Opcode::Auipc => {
+                let data = UType::from(inst);
+                Ok(Self::Auipc { rd: data.rd, imm: data.imm })
+            },
+
             Opcode::Jal => {
                 let data = JType::from(inst);
                 Ok(Self::Jal { rd: data.rd, imm: data.imm })
-            }
+            },
+
             Opcode::Jalr => {
                 let data = IType::from(inst);
                 Ok(Self::Jalr { rd: data.rd, rs1: data.rs1, imm: data.imm })
             },
 
-            Opcode::Branch => panic!("Not implemented: {:?}", opcode),
-            Opcode::Load => panic!("Not implemented: {:?}", opcode),
-            Opcode::Store => panic!("Not implemented: {:?}", opcode),
-            Opcode::OpImm => panic!("Not implemented: {:?}", opcode),
-            Opcode::OpImm32 => panic!("Not implemented: {:?}", opcode),
-            Opcode::Op => panic!("Not implemented: {:?}", opcode),
-            Opcode::Op32 => panic!("Not implemented: {:?}", opcode),
-            Opcode::MiscMem => panic!("Not implemented: {:?}", opcode),
-            Opcode::System => panic!("Not implemented: {:?}", opcode),
+            Opcode::Branch => Self::decode_branch(inst),
+            Opcode::Load => Self::decode_load(inst),
+            Opcode::Store => Self::decode_store(inst),
+            Opcode::OpImm => Self::decode_op_imm(inst),
+            Opcode::OpImm32 => Self::decode_op_imm_32(inst),
+            Opcode::Op => Self::decode_op(inst),
+            Opcode::Op32 => Self::decode_op_32(inst),
+            Opcode::MiscMem => Self::decode_misc_mem(inst),
+            Opcode::System => Self::decode_system(inst),
+        };
+    }
+
+    fn decode_branch(inst: u32) -> Result<Self> {
+        let data = BType::from(inst);
+
+        let rs1 = data.rs1;
+        let rs2 = data.rs2;
+        let imm = data.imm;
+
+        return match data.funct3 {
+            0b000 => Ok(Self::Beq  { rs1, rs2, imm }),
+            0b001 => Ok(Self::Bne  { rs1, rs2, imm }),
+            0b100 => Ok(Self::Blt  { rs1, rs2, imm }),
+            0b101 => Ok(Self::Bge  { rs1, rs2, imm }),
+            0b110 => Ok(Self::Bltu { rs1, rs2, imm }),
+            0b111 => Ok(Self::Bgeu { rs1, rs2, imm }),
+
+            _ => Err(Error::UnknownInstruction(Opcode::Branch, inst)),
+        };
+    }
+
+    fn decode_load(inst: u32) -> Result<Self> {
+        let data = IType::from(inst);
+
+        let rd = data.rd;
+        let rs1 = data.rs1;
+        let imm = data.imm;
+
+        return match data.funct3 {
+            0b000 => Ok(Self::Lb  { rd, rs1, imm }),
+            0b001 => Ok(Self::Lh  { rd, rs1, imm }),
+            0b010 => Ok(Self::Lw  { rd, rs1, imm }),
+            0b100 => Ok(Self::Lbu { rd, rs1, imm }),
+            0b101 => Ok(Self::Lhu { rd, rs1, imm }),
+            0b110 => Ok(Self::Lwu { rd, rs1, imm }),
+            0b011 => Ok(Self::Ld  { rd, rs1, imm }),
+
+            _ => Err(Error::UnknownInstruction(Opcode::Load, inst)),
+        };
+    }
+
+    fn decode_store(inst: u32) -> Result<Self> {
+        let data = SType::from(inst);
+
+        let rs1 = data.rs1;
+        let rs2 = data.rs2;
+        let imm = data.imm;
+
+        return match data.funct3 {
+            0b000 => Ok(Self::Sb { rs1, rs2, imm }),
+            0b001 => Ok(Self::Sh { rs1, rs2, imm }),
+            0b010 => Ok(Self::Sw { rs1, rs2, imm }),
+            0b011 => Ok(Self::Sd { rs1, rs2, imm }),
+
+            _ => Err(Error::UnknownInstruction(Opcode::Store, inst)),
+        };
+    }
+
+    fn decode_op_imm(inst: u32) -> Result<Self> {
+        let data = IType::from(inst);
+
+        let rd = data.rd;
+        let rs1 = data.rs1;
+        let imm = data.imm;
+
+        let mode = imm & 0x3f;
+        let shamt = (imm >> 6) & 0x3f;
+
+        return match data.funct3 {
+            0b000 => Ok(Self::Addi  { rd, rs1, imm }),
+            0b010 => Ok(Self::Slti  { rd, rs1, imm }),
+            0b011 => Ok(Self::Sltiu { rd, rs1, imm }),
+            0b100 => Ok(Self::Xori  { rd, rs1, imm }),
+            0b110 => Ok(Self::Ori   { rd, rs1, imm }),
+            0b111 => Ok(Self::Andi  { rd, rs1, imm }),
+            0b001 => Ok(Self::Slli  { rd, rs1, shamt }),
+            0b101 => {
+                match mode {
+                    0b0000000 => Ok(Self::Srli  { rd, rs1, shamt }),
+                    0b0100000 => Ok(Self::Srai  { rd, rs1, shamt }),
+
+                    // TODO(patrik): Diffrent error?
+                    _ => Err(Error::UnknownInstruction(Opcode::OpImm, inst)),
+                }
+            },
+
+            _ => Err(Error::UnknownInstruction(Opcode::OpImm, inst)),
+        };
+    }
+
+    fn decode_op_imm_32(inst: u32) -> Result<Self> {
+        let data = IType::from(inst);
+
+        let rd = data.rd;
+        let rs1 = data.rs1;
+        let imm = data.imm;
+
+        let mode = imm & 0x3f;
+        let shamt = (imm >> 6) & 0x3f;
+
+        return match data.funct3 {
+            0b000 => Ok(Self::Addiw { rd, rs1, imm }),
+            0b001 => Ok(Self::Slliw { rd, rs1, shamt }),
+            0b101 => {
+                match mode {
+                    0b0000000 => Ok(Self::Srliw { rd, rs1, shamt }),
+                    0b0100000 => Ok(Self::Sraiw { rd, rs1, shamt }),
+
+                    // TODO(patrik): Diffrent error?
+                    _ => Err(Error::UnknownInstruction(Opcode::OpImm32, inst)),
+                }
+            },
+
+            _ => Err(Error::UnknownInstruction(Opcode::OpImm32, inst)),
+        };
+    }
+
+    fn decode_op(inst: u32) -> Result<Self> {
+        let data = RType::from(inst);
+
+        let rd = data.rd;
+        let rs1 = data.rs1;
+        let rs2 = data.rs2;
+
+        return match (data.funct3, data.funct7) {
+            (0b000, 0b0000000) => Ok(Self::Add  { rd, rs1, rs2 }),
+            (0b000, 0b0100000) => Ok(Self::Sub  { rd, rs1, rs2 }),
+            (0b001, 0b0000000) => Ok(Self::Sll  { rd, rs1, rs2 }),
+            (0b010, 0b0000000) => Ok(Self::Slt  { rd, rs1, rs2 }),
+            (0b011, 0b0000000) => Ok(Self::Sltu { rd, rs1, rs2 }),
+            (0b100, 0b0000000) => Ok(Self::Xor  { rd, rs1, rs2 }),
+            (0b101, 0b0000000) => Ok(Self::Srl  { rd, rs1, rs2 }),
+            (0b101, 0b0100000) => Ok(Self::Sra  { rd, rs1, rs2 }),
+            (0b110, 0b0000000) => Ok(Self::Or   { rd, rs1, rs2 }),
+            (0b111, 0b0000000) => Ok(Self::And  { rd, rs1, rs2 }),
+
+            // TODO(patrik): Diffrent error?
+            _ => Err(Error::UnknownInstruction(Opcode::Op, inst)),
+        };
+    }
+
+    fn decode_op_32(inst: u32) -> Result<Self> {
+        let data = RType::from(inst);
+
+        let rd = data.rd;
+        let rs1 = data.rs1;
+        let rs2 = data.rs2;
+
+        return match (data.funct3, data.funct7) {
+            (0b000, 0b0000000) => Ok(Self::Addw { rd, rs1, rs2 }),
+            (0b000, 0b0100000) => Ok(Self::Subw { rd, rs1, rs2 }),
+            (0b001, 0b0000000) => Ok(Self::Sllw { rd, rs1, rs2 }),
+            (0b101, 0b0000000) => Ok(Self::Srlw { rd, rs1, rs2 }),
+            (0b101, 0b0100000) => Ok(Self::Sraw { rd, rs1, rs2 }),
+
+            // TODO(patrik): Diffrent error?
+            _ => Err(Error::UnknownInstruction(Opcode::Op32, inst)),
+        };
+    }
+
+    fn decode_misc_mem(inst: u32) -> Result<Self> {
+        let data = IType::from(inst);
+        return match data.funct3 {
+            0b000 => Ok(Self::Fence { }),
+
+            _ => Err(Error::UnknownInstruction(Opcode::MiscMem, inst)),
+        };
+    }
+
+    fn decode_system(inst: u32) -> Result<Self> {
+        let data = IType::from(inst);
+
+        let imm = data.imm;
+
+        return match data.funct3 {
+            0b000 => {
+                match imm & 0xfff {
+                    0 => Ok(Self::Ecall {}),
+                    1 => Ok(Self::Ebreak {}),
+
+                    _ => Err(Error::UnknownInstruction(Opcode::System, inst)),
+                }
+            },
+
+            _ => Err(Error::UnknownInstruction(Opcode::System, inst)),
         };
     }
 }
