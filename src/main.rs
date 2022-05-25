@@ -23,7 +23,7 @@ fn read_file_to_vec<P>(path: P) -> Vec<u8>
 }
 
 fn main() {
-    let path = "/opt/riscv/target/share/riscv-tests/isa/rv64ui-v-add";
+    let path = "/opt/riscv/target/share/riscv-tests/isa/rv64ui-p-add";
     let file_data = read_file_to_vec(path);
     println!("Data: {}", file_data.len());
 
@@ -54,6 +54,6 @@ fn main() {
 
     loop {
         hart.step();
-        // hart.dump();
+        hart.dump();
     }
 }

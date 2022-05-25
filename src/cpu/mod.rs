@@ -187,9 +187,45 @@ impl Hart {
                 self.set_reg(Reg::Pc, target);
             }
 
+
+            Instruction::Sd { rs1, rs2, imm } => {
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let value = self.reg(rs2);
+                println!("Writing: {:#x} -> {:#x}", value, addr);
+                self.mmu.write_u64(addr, value);
+            }
+
+            Instruction::Bne { rs1, rs2, imm } => {
+                if self.reg(rs1) != self.reg(rs2) {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
+
+            Instruction::Beq { rs1, rs2, imm } => {
+                if self.reg(rs1) == self.reg(rs2) {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
+
+            Instruction::Bge { rs1, rs2, imm } => {
+                if self.reg(rs1) >= self.reg(rs2) {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
+
             Instruction::Addi { rd, rs1, imm } => {
                 let res = self.reg(rs1).wrapping_add(imm as i64 as u64);
                 self.set_reg(rd, res);
+            }
+
+            Instruction::Addiw { rd, rs1, imm } => {
+                let result = (self.reg(rs1) as u32)
+                    .wrapping_add(imm as u32);
+                self.set_reg(rd, result as i32 as i64 as u64);
             }
 
             Instruction::Slli { rd, rs1, shamt } => {
@@ -198,20 +234,30 @@ impl Hart {
                 self.set_reg(rd, result);
             }
 
+            Instruction::Srli { rd, rs1, shamt } => {
+                let result = self.reg(rs1) >> shamt;
+                self.set_reg(rd, result);
+            }
+
             Instruction::Add { rd, rs1, rs2 } => {
                 let result = self.reg(rs1).wrapping_add(self.reg(rs2));
                 self.set_reg(rd, result);
             }
 
-            /*
             Instruction::Csrrw { rd, rs1, csr } => {
+                self.set_reg(rd, 0);
                 println!("TODO: csrrw: {:?} {:?} {:#x}", rd, rs1, csr);
             }
 
             Instruction::Csrrs { rd, rs1, csr } => {
+                self.set_reg(rd, 0);
                 println!("TODO: csrrs: {:?} {:?} {:#x}", rd, rs1, csr);
             }
-            */
+
+            Instruction::Csrrwi { rd, uimm, csr } => {
+                self.set_reg(rd, 0);
+                println!("TODO: csrrs: {:?} {:?} {:#x}", rd, uimm, csr);
+            }
 
             _ => panic!("Not implemented: {:x?}", inst),
         }

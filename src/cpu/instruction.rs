@@ -130,6 +130,12 @@ pub enum Instruction {
     /// Opcode: SYSTEM
     Ecall {}, // TODO(patrik): Fill in
     Ebreak {}, // TODO(patrik): Fill in
+    Csrrw { rd: Reg, rs1: Reg, csr: u16 },
+    Csrrs { rd: Reg, rs1: Reg, csr: u16 },
+    Csrrc { rd: Reg, rs1: Reg, csr: u16 },
+    Csrrwi { rd: Reg, uimm: u32, csr: u16 },
+    Csrrsi { rd: Reg, uimm: u32, csr: u16 },
+    Csrrci { rd: Reg, uimm: u32, csr: u16 },
 }
 
 impl Instruction {
@@ -234,8 +240,8 @@ impl Instruction {
         let rs1 = data.rs1;
         let imm = data.imm;
 
-        let mode = imm & 0x3f;
-        let shamt = (imm >> 6) & 0x3f;
+        let shamt = imm & 0x3f;
+        let mode = (imm >> 6) & 0x3f;
 
         return match data.funct3 {
             0b000 => Ok(Self::Addi  { rd, rs1, imm }),
@@ -266,8 +272,8 @@ impl Instruction {
         let rs1 = data.rs1;
         let imm = data.imm;
 
-        let mode = imm & 0x3f;
-        let shamt = (imm >> 6) & 0x3f;
+        let shamt = imm & 0x3f;
+        let mode = (imm >> 6) & 0x3f;
 
         return match data.funct3 {
             0b000 => Ok(Self::Addiw { rd, rs1, imm }),
@@ -341,7 +347,12 @@ impl Instruction {
     fn decode_system(inst: u32) -> Result<Self> {
         let data = IType::from(inst);
 
+        let rd = data.rd;
+        let rs1 = data.rs1;
+
         let imm = data.imm;
+        let uimm = (inst >> 15) & 0x1f;
+        let csr = (imm & 0xfff) as u16;
 
         return match data.funct3 {
             0b000 => {
@@ -352,6 +363,13 @@ impl Instruction {
                     _ => Err(Error::UnknownInstruction(Opcode::System, inst)),
                 }
             },
+
+            0b001 => Ok(Self::Csrrw { rd, rs1, csr }),
+            0b010 => Ok(Self::Csrrs { rd, rs1, csr }),
+            0b011 => Ok(Self::Csrrc { rd, rs1, csr }),
+            0b101 => Ok(Self::Csrrwi { rd, uimm, csr }),
+            0b110 => Ok(Self::Csrrsi { rd, uimm, csr }),
+            0b111 => Ok(Self::Csrrci { rd, uimm, csr }),
 
             _ => Err(Error::UnknownInstruction(Opcode::System, inst)),
         };
