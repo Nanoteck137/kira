@@ -1,10 +1,14 @@
 //! Module to handle memory
 
-pub struct Memory {
+pub use memory::{ Mmu, TypeWidth };
+
+mod memory;
+
+pub struct TestingMemory {
     memory: Vec<u8>,
 }
 
-impl Memory {
+impl TestingMemory {
     pub fn new(size: usize) -> Self {
         Self {
             memory: vec![0; size],
@@ -80,18 +84,21 @@ impl Memory {
 /// This is temporary, used for the tests
 pub const MEMORY_OFFSET: u64 = 0x80000000;
 
-pub struct Mmu {
-    memory: Memory,
+pub struct TestingMmu {
+    memory: TestingMemory,
 }
 
-impl Mmu {
-    pub fn new(memory: Memory) -> Self {
+impl TestingMmu {
+    pub fn new(memory: TestingMemory) -> Self {
         Self {
             memory
         }
     }
+}
 
-    fn read(&self, addr: u64, width: usize) -> u64 {
+impl Mmu for TestingMmu {
+    /// Read from memory
+    fn read(&self, addr: u64, width: TypeWidth) -> u64 {
         if addr >= MEMORY_OFFSET &&
             addr < MEMORY_OFFSET + self.memory.len() as u64
         {
@@ -99,19 +106,22 @@ impl Mmu {
             let addr: usize = addr.try_into().unwrap();
 
             return match width {
-                8 =>  self.memory.read_u8(addr)  as u64,
-                16 => self.memory.read_u16(addr) as u64,
-                32 => self.memory.read_u32(addr) as u64,
-                64 => self.memory.read_u64(addr) as u64,
-
-                _ => panic!("Unknown read width: {}", width),
+                TypeWidth::Byte =>  
+                    self.memory.read_u8(addr)  as u64,
+                TypeWidth::HalfWord => 
+                    self.memory.read_u16(addr) as u64,
+                TypeWidth::Word => 
+                    self.memory.read_u32(addr) as u64,
+                TypeWidth::DoubleWord => 
+                    self.memory.read_u64(addr) as u64,
             };
         }
 
         panic!("Unknown addr: {:#x}", addr);
     }
 
-    fn write(&mut self, addr: u64, value: u64, width: usize) {
+    /// Write to memory
+    fn write(&mut self, addr: u64, value: u64, width: TypeWidth) {
         if addr >= MEMORY_OFFSET &&
             addr < MEMORY_OFFSET + self.memory.len() as u64
         {
@@ -119,47 +129,17 @@ impl Mmu {
             let addr: usize = addr.try_into().unwrap();
 
             return match width {
-                8 =>  self.memory.write_u8(addr, value as u8),
-                16 => self.memory.write_u16(addr, value as u16),
-                32 => self.memory.write_u32(addr, value as u32),
-                64 => self.memory.write_u64(addr, value as u64),
-
-                _ => panic!("Unknown read width: {}", width),
+                TypeWidth::Byte => 
+                    self.memory.write_u8(addr, value as u8),
+                TypeWidth::HalfWord => 
+                    self.memory.write_u16(addr, value as u16),
+                TypeWidth::Word =>
+                    self.memory.write_u32(addr, value as u32),
+                TypeWidth::DoubleWord => 
+                    self.memory.write_u64(addr, value as u64),
             };
         }
 
         panic!("Unknown addr: {:#x}", addr);
-    }
-
-    pub fn read_u8(&self, addr: u64) -> u8 {
-        self.read(addr, 8) as u8
-    }
-
-    pub fn read_u16(&self, addr: u64) -> u16 {
-        self.read(addr, 16) as u16
-    }
-
-    pub fn read_u32(&self, addr: u64) -> u32 {
-        self.read(addr, 32) as u32
-    }
-
-    pub fn read_u64(&self, addr: u64) -> u32 {
-        self.read(addr, 32) as u32
-    }
-
-    pub fn write_u8(&mut self, addr: u64, value: u8) {
-        self.write(addr, value as u64, 8);
-    }
-
-    pub fn write_u16(&mut self, addr: u64, value: u16) {
-        self.write(addr, value as u64, 16);
-    }
-
-    pub fn write_u32(&mut self, addr: u64, value: u32) {
-        self.write(addr, value as u64, 32);
-    }
-
-    pub fn write_u64(&mut self, addr: u64, value: u64) {
-        self.write(addr, value as u64, 64);
     }
 }
