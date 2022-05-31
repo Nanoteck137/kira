@@ -128,8 +128,10 @@ pub enum Instruction {
     Fence {}, // TODO(patrik): Fill in
 
     /// Opcode: SYSTEM
-    Ecall {}, // TODO(patrik): Fill in
-    Ebreak {}, // TODO(patrik): Fill in
+    Ecall,
+    Ebreak,
+    Sret,
+    Mret,
     Csrrw { rd: Reg, rs1: Reg, csr: u16 },
     Csrrs { rd: Reg, rs1: Reg, csr: u16 },
     Csrrc { rd: Reg, rs1: Reg, csr: u16 },
@@ -356,9 +358,14 @@ impl Instruction {
 
         return match data.funct3 {
             0b000 => {
-                match imm & 0xfff {
-                    0 => Ok(Self::Ecall {}),
-                    1 => Ok(Self::Ebreak {}),
+                let rdata = RType::from(inst);
+                let funct5 = (inst >> 20) & 0x1f;
+
+                match (funct5, rdata.funct7) {
+                    (0b00000, 0b0000000) => Ok(Self::Ecall {}),
+                    (0b00001, 0b0000000) => Ok(Self::Ebreak {}),
+                    (0b00010, 0b0001000) => Ok(Self::Sret {}),
+                    (0b00010, 0b0011000) => Ok(Self::Mret {}),
 
                     _ => Err(Error::UnknownInstruction(Opcode::System, inst)),
                 }

@@ -130,7 +130,9 @@ impl From<u32> for Reg {
 
 pub struct Hart {
     registers: [u64; 33],
-    mmu: Mmu
+    mmu: Mmu,
+
+    mepc: u64,
 }
 
 impl Hart {
@@ -138,6 +140,7 @@ impl Hart {
         Self {
             registers: [0u64; 33],
             mmu,
+            mepc: 0,
         }
     }
 
@@ -166,6 +169,10 @@ impl Hart {
         println!("Executing CPU Instruction: {:x?}", inst);
 
         match inst {
+            Instruction::Lui { rd, imm } => {
+                self.set_reg(rd, imm as i64 as u64);
+            }
+
             Instruction::Auipc { rd, imm } => {
                 let target = current_pc.wrapping_add(imm as i64 as u64);
                 self.set_reg(rd, target);
@@ -222,6 +229,11 @@ impl Hart {
                 self.set_reg(rd, res);
             }
 
+            Instruction::Ori { rd, rs1, imm } => {
+                let res = self.reg(rs1) | imm as i64 as u64;
+                self.set_reg(rd, res);
+            }
+
             Instruction::Addiw { rd, rs1, imm } => {
                 let result = (self.reg(rs1) as u32)
                     .wrapping_add(imm as u32);
@@ -244,8 +256,16 @@ impl Hart {
                 self.set_reg(rd, result);
             }
 
+            Instruction::Mret => {
+                self.set_reg(Reg::Pc, self.mepc);
+            }
+
             Instruction::Csrrw { rd, rs1, csr } => {
                 self.set_reg(rd, 0);
+                if csr == 0x341 {
+                    self.mepc = self.reg(rs1);
+                    println!("Setting MEPC: {:#x?}", self.mepc);
+                }
                 println!("TODO: csrrw: {:?} {:?} {:#x}", rd, rs1, csr);
             }
 
@@ -257,6 +277,18 @@ impl Hart {
             Instruction::Csrrwi { rd, uimm, csr } => {
                 self.set_reg(rd, 0);
                 println!("TODO: csrrs: {:?} {:?} {:#x}", rd, uimm, csr);
+            }
+
+            Instruction::Fence {} => {
+                println!("Fence");
+            }
+
+            Instruction::Ecall => {
+                self.dump();
+                if self.reg(Reg::X10) != 0 {
+                    panic!("Test Failed: #{}", self.reg(Reg::X10));
+                }
+                panic!("Syscall");
             }
 
             _ => panic!("Not implemented: {:x?}", inst),
@@ -279,6 +311,7 @@ impl Hart {
             if i % 4 == 0 && i != 0 { println!(); }
             print!("x{:02}: {:016x} ", i, self.registers[i]);
         }
+        println!();
         println!("Pc: {:016x}", self.reg(Reg::Pc));
     }
 }
