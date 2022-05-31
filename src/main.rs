@@ -4,8 +4,8 @@ use std::path::Path;
 use std::fs::File;
 use std::io::Read;
 
-use memory::{ Memory, Mmu };
-use cpu::{ Hart, Reg };
+use memory::{ TestingMemory, TestingMmu, Mmu };
+use cpu::{ TestingHart, Hart, Reg };
 
 mod elf;
 mod memory;
@@ -30,8 +30,8 @@ fn main() {
     let e = elf::Elf::parse(&file_data).unwrap();
     println!("Elf: {:#?}", e);
 
-    let memory = Memory::new(100 * 1024 * 1024);
-    let mut mmu = Mmu::new(memory);
+    let memory = TestingMemory::new(100 * 1024 * 1024);
+    let mut mmu = TestingMmu::new(memory);
 
     for program_header in e.program_header_iter() {
         if program_header.typ() == elf::ProgramHeaderTyp::Load {
@@ -47,7 +47,7 @@ fn main() {
         }
     }
 
-    let mut hart = Hart::new(mmu);
+    let mut hart = TestingHart::new(Box::new(mmu));
     hart.set_reg(Reg::Pc, e.entry());
     hart.dump();
 
