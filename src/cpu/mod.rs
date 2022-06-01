@@ -36,7 +36,7 @@ impl SimpleHart {
     }
 
     fn execute_instruction(&mut self, current_pc: u64, inst: Instruction) {
-        println!("Executing CPU Instruction: {:x?}", inst);
+        //println!("Executing CPU Instruction: {:x?}", inst);
 
         match inst {
             Instruction::Lui { rd, imm } => { 
@@ -56,7 +56,15 @@ impl SimpleHart {
                 self.set_reg(Reg::Pc, target);
             }
 
-            Instruction::Jalr { rd, rs1, imm } => { todo!(); }
+            Instruction::Jalr { rd, rs1, imm } => {
+                let target = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+
+                let return_addr = self.reg(Reg::Pc);
+                self.set_reg(rd, return_addr);
+
+                self.set_reg(Reg::Pc, target);
+            }
 
             Instruction::Beq  { rs1, rs2, imm } => { 
                 if self.reg(rs1) == self.reg(rs2) {
@@ -72,25 +80,95 @@ impl SimpleHart {
                 }
             }
 
-            Instruction::Blt  { rs1, rs2, imm } => { todo!(); }
+            Instruction::Blt  { rs1, rs2, imm } => {
+                if (self.reg(rs1) as i64) < (self.reg(rs2) as i64) {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
             Instruction::Bge  { rs1, rs2, imm } => { 
+                if self.reg(rs1) as i64 >= self.reg(rs2) as i64 {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
+
+            Instruction::Bltu { rs1, rs2, imm } => {
+                if self.reg(rs1) < self.reg(rs2) {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
+
+            Instruction::Bgeu { rs1, rs2, imm } => {
                 if self.reg(rs1) >= self.reg(rs2) {
                     let target = current_pc.wrapping_add(imm as i64 as u64);
                     self.set_reg(Reg::Pc, target);
                 }
             }
 
-            Instruction::Bltu { rs1, rs2, imm } => { todo!(); }
-            Instruction::Bgeu { rs1, rs2, imm } => { todo!(); }
-            Instruction::Lb  { rd, rs1, imm } => { todo!(); }
-            Instruction::Lh  { rd, rs1, imm } => { todo!(); }
-            Instruction::Lw  { rd, rs1, imm } => { todo!(); }
-            Instruction::Lbu { rd, rs1, imm } => { todo!(); }
-            Instruction::Lhu { rd, rs1, imm } => { todo!(); }
-            Instruction::Lwu { rd, rs1, imm } => { todo!(); }
-            Instruction::Ld  { rd, rs1, imm } => { todo!(); }
-            Instruction::Sb { rs1, rs2, imm } => { todo!(); }
-            Instruction::Sh { rs1, rs2, imm } => { todo!(); }
+            Instruction::Lb  { rd, rs1, imm } => {
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let result = self.mmu.read_u8(addr);
+                self.set_reg(rd, result as i8 as i64 as u64);
+            }
+
+            Instruction::Lh  { rd, rs1, imm } => {
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let result = self.mmu.read_u16(addr);
+                self.set_reg(rd, result as i16 as i64 as u64);
+            }
+
+            Instruction::Lw  { rd, rs1, imm } => {
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let result = self.mmu.read_u32(addr);
+                self.set_reg(rd, result as i32 as i64 as u64);
+            }
+
+            Instruction::Lbu { rd, rs1, imm } => { 
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let result = self.mmu.read_u8(addr);
+                self.set_reg(rd, result as u64);
+            }
+
+            Instruction::Lhu { rd, rs1, imm } => {
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let result = self.mmu.read_u16(addr);
+                self.set_reg(rd, result as u64);
+            }
+
+            Instruction::Lwu { rd, rs1, imm } => { 
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let result = self.mmu.read_u32(addr);
+                self.set_reg(rd, result as u64);
+            }
+
+            Instruction::Ld  { rd, rs1, imm } => {
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let result = self.mmu.read_u64(addr);
+                self.set_reg(rd, result as i64 as u64);
+            }
+
+            Instruction::Sb { rs1, rs2, imm } => {
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let value = self.reg(rs2) as u8;
+                self.mmu.write_u8(addr, value);
+            }
+
+            Instruction::Sh { rs1, rs2, imm } => {
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let value = self.reg(rs2) as u16;
+                self.mmu.write_u16(addr, value);
+            }
 
             Instruction::Sw { rs1, rs2, imm } => { 
                 let addr = self.reg(rs1)
@@ -111,16 +189,36 @@ impl SimpleHart {
                 self.set_reg(rd, res);
             }
 
-            Instruction::Slti  { rd, rs1, imm } => { todo!(); }
-            Instruction::Sltiu { rd, rs1, imm } => { todo!(); }
-            Instruction::Xori  { rd, rs1, imm } => { todo!(); }
+            Instruction::Slti  { rd, rs1, imm } => {
+                if (self.reg(rs1) as i64) < (imm as i64) {
+                    self.set_reg(rd, 1);
+                } else {
+                    self.set_reg(rd, 0);
+                }
+            }
+
+            Instruction::Sltiu { rd, rs1, imm } => { 
+                if self.reg(rs1) < (imm as i64 as u64) {
+                    self.set_reg(rd, 1);
+                } else {
+                    self.set_reg(rd, 0);
+                }
+            }
+
+            Instruction::Xori  { rd, rs1, imm } => {
+                let result = self.reg(rs1) ^ (imm as i64 as u64);
+                self.set_reg(rd, result);
+            }
 
             Instruction::Ori   { rd, rs1, imm } => { 
                 let res = self.reg(rs1) | imm as i64 as u64;
                 self.set_reg(rd, res);
             }
 
-            Instruction::Andi  { rd, rs1, imm } => { todo!(); }
+            Instruction::Andi  { rd, rs1, imm } => {
+                let result = self.reg(rs1) & imm as i64 as u64;
+                self.set_reg(rd, result);
+            }
 
             Instruction::Slli  { rd, rs1, shamt } => { 
                 // TODO(patrik): Wrapping?
@@ -128,8 +226,15 @@ impl SimpleHart {
                 self.set_reg(rd, result);
             }
 
-            Instruction::Srli  { rd, rs1, shamt } => { todo!(); }
-            Instruction::Srai  { rd, rs1, shamt } => { todo!(); }
+            Instruction::Srli  { rd, rs1, shamt } => {
+                let result = self.reg(rs1) >> shamt;
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Srai  { rd, rs1, shamt } => {
+                let result = (self.reg(rs1) as i64) >> shamt;
+                self.set_reg(rd, result as u64);
+            }
 
             Instruction::Addiw { rd, rs1, imm } => { 
                 let result = (self.reg(rs1) as u32)
@@ -137,29 +242,112 @@ impl SimpleHart {
                 self.set_reg(rd, result as i32 as i64 as u64);
             }
 
-            Instruction::Slliw { rd, rs1, shamt } => { todo!(); }
-            Instruction::Srliw { rd, rs1, shamt } => { todo!(); }
-            Instruction::Sraiw { rd, rs1, shamt } => { todo!(); }
+            Instruction::Slliw { rd, rs1, shamt } => {
+                let result = (self.reg(rs1) as u32) << shamt;
+                self.set_reg(rd, result as i32 as i64 as u64);
+            }
+
+            Instruction::Srliw { rd, rs1, shamt } => {
+                let result = (self.reg(rs1) as u32) >> shamt;
+                self.set_reg(rd, result as i32 as u64);                
+            }
+
+            Instruction::Sraiw { rd, rs1, shamt } => {
+                let result = (self.reg(rs1) as u32 as i32) >> shamt;
+                self.set_reg(rd, result as i64 as u64);                
+            }
 
             Instruction::Add  { rd, rs1, rs2 } => { 
                 let result = self.reg(rs1).wrapping_add(self.reg(rs2));
                 self.set_reg(rd, result);
             }
 
-            Instruction::Sub  { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Sll  { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Slt  { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Sltu { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Xor  { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Srl  { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Sra  { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Or   { rd, rs1, rs2 } => { todo!(); }
-            Instruction::And  { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Addw { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Subw { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Sllw { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Srlw { rd, rs1, rs2 } => { todo!(); }
-            Instruction::Sraw { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Sub  { rd, rs1, rs2 } => {
+                let result = self.reg(rs1).wrapping_sub(self.reg(rs2));
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Sll  { rd, rs1, rs2 } => {
+                let shamt = self.reg(rs2) & 0x3f;
+                let result = self.reg(rs1) << shamt;
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Slt  { rd, rs1, rs2 } => {
+                if (self.reg(rs1) as i64) < (self.reg(rs2) as i64) {
+                    self.set_reg(rd, 1);
+                } else {
+                    self.set_reg(rd, 0)
+                }
+            }
+
+            Instruction::Sltu { rd, rs1, rs2 } => {
+                if self.reg(rs1) < self.reg(rs2) {
+                    self.set_reg(rd, 1);
+                } else {
+                    self.set_reg(rd, 0)
+                }
+            }
+
+            Instruction::Xor  { rd, rs1, rs2 } => {
+                let result = self.reg(rs1) ^ self.reg(rs2);
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Srl  { rd, rs1, rs2 } => {
+                let shamt = self.reg(rs2) & 0x3f;
+                let result = self.reg(rs1) >> shamt;
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Sra  { rd, rs1, rs2 } => {
+                let shamt = self.reg(rs2) & 0x3f;
+                let result = (self.reg(rs1) as i64) >> shamt;
+                self.set_reg(rd, result as u64);
+            }
+
+            Instruction::Or   { rd, rs1, rs2 } => {
+                let result = self.reg(rs1) | self.reg(rs2);
+                self.set_reg(rd, result);
+            }
+
+            Instruction::And  { rd, rs1, rs2 } => {
+                let result = self.reg(rs1) & self.reg(rs2);
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Addw { rd, rs1, rs2 } => {
+                let rs1 = self.reg(rs1) as u32;
+                let rs2 = self.reg(rs2) as u32;
+                let result = rs1.wrapping_add(rs2);
+                self.set_reg(rd, result as i32 as i64 as u64);
+            }
+
+            Instruction::Subw { rd, rs1, rs2 } => {
+                let rs1 = self.reg(rs1) as u32;
+                let rs2 = self.reg(rs2) as u32;
+                let result = rs1.wrapping_sub(rs2);
+                self.set_reg(rd, result as i32 as i64 as u64);
+            }
+
+            Instruction::Sllw { rd, rs1, rs2 } => {
+                let shamt = (self.reg(rs2) & 0x1f) as u32;
+                let result = (self.reg(rs1) as u32) << shamt;
+                self.set_reg(rd, result as i32 as i64 as u64);
+            }
+
+            Instruction::Srlw { rd, rs1, rs2 } => {
+                let shamt = self.reg(rs2) & 0x1f;
+                let result = (self.reg(rs1) as u32) >> shamt;
+                self.set_reg(rd, result as i32 as i64 as u64);
+            }
+
+            Instruction::Sraw { rd, rs1, rs2 } => {
+                let shamt = self.reg(rs2) & 0x1f;
+                let result = (self.reg(rs1) as u32 as i32) >> shamt;
+                self.set_reg(rd, result as i64 as u64);
+            }
+
             Instruction::Fence {} => { }
 
             Instruction::Ecall => {
@@ -370,11 +558,11 @@ impl Hart for SimpleHart {
     fn step(&mut self) {
         let pc = self.reg(Reg::Pc);
         let inst = self.fetch_u32();
-        println!("{:#x}: {:#x}", pc, inst);
+        // println!("{:#x}: {:#x}", pc, inst);
 
         match Instruction::decode(inst) {
             Ok(inst) => self.execute_instruction(pc, inst),
-            Err(e) => panic!("Failed to decode inst: {:?}", e),
+            Err(e) => panic!("Failed to decode inst: {:#x} {:x?}", pc, e),
         }
     }
 }
