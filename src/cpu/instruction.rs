@@ -242,7 +242,7 @@ impl Instruction {
         let imm = data.imm;
 
         let shamt = imm & 0x3f;
-        let mode = (imm >> 6) & 0x3f;
+        let mode = (imm >> 5) & 0x3f;
 
         return match data.funct3 {
             0b000 => Ok(Self::Addi  { rd, rs1, imm }),
@@ -274,7 +274,7 @@ impl Instruction {
         let imm = data.imm;
 
         let shamt = imm & 0x3f;
-        let mode = (imm >> 6) & 0x3f;
+        let mode = (imm >> 5) & 0x3f;
 
         return match data.funct3 {
             0b000 => Ok(Self::Addiw { rd, rs1, imm }),
