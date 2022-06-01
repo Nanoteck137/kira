@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::Read;
 
 use memory::{ TestingMemory, TestingMmu, Mmu };
-use cpu::{ TestingHart, Hart, Reg };
+use cpu::{ SimpleHart, Hart, Reg };
 
 mod elf;
 mod memory;
@@ -47,12 +47,27 @@ fn main() {
         }
     }
 
-    let mut hart = TestingHart::new(Box::new(mmu));
+    let mut hart = SimpleHart::new(Box::new(mmu));
     hart.set_reg(Reg::Pc, e.entry());
     hart.dump();
 
     loop {
         hart.step();
+
+        let value = hart.mmu.read_u32(0x80001000);
+        let success = (value & 0x1) == 1;
+        let testnum = value >> 1;
+
+        if success {
+            if testnum == 0 {
+                println!("Passed");
+                break;
+            } 
+
+            if testnum > 0 {
+                panic!("Failed: Test #{}", testnum);
+            }
+        }
         // hart.dump();
     }
 }

@@ -8,19 +8,20 @@ pub use cpu::{ Hart, Reg };
 mod instruction;
 mod cpu;
 
-pub struct TestingHart {
-    registers: [u64; 33],
-    mmu: Box<dyn Mmu>,
+const MAX_CONTROL_REGISTERS: usize = 4096;
 
-    mepc: u64,
+pub struct SimpleHart {
+    registers: [u64; 33],
+    csr: [u64; MAX_CONTROL_REGISTERS],
+    pub mmu: Box<dyn Mmu>,
 }
 
-impl TestingHart {
+impl SimpleHart {
     pub fn new(mmu: Box<dyn Mmu>) -> Self {
         Self {
             registers: [0u64; 33],
+            csr: [0u64; MAX_CONTROL_REGISTERS],
             mmu,
-            mepc: 0,
         }
     }
 
@@ -38,6 +39,182 @@ impl TestingHart {
         println!("Executing CPU Instruction: {:x?}", inst);
 
         match inst {
+            Instruction::Lui { rd, imm } => { 
+                self.set_reg(rd, imm as i64 as u64);
+            }
+
+            Instruction::Auipc { rd, imm } => { 
+                let target = current_pc.wrapping_add(imm as i64 as u64);
+                self.set_reg(rd, target);
+            }
+
+            Instruction::Jal { rd, imm } => { 
+                let target = current_pc.wrapping_add(imm as i64 as u64);
+                let return_address = self.reg(Reg::Pc);
+
+                self.set_reg(rd, return_address);
+                self.set_reg(Reg::Pc, target);
+            }
+
+            Instruction::Jalr { rd, rs1, imm } => { todo!(); }
+
+            Instruction::Beq  { rs1, rs2, imm } => { 
+                if self.reg(rs1) == self.reg(rs2) {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
+
+            Instruction::Bne  { rs1, rs2, imm } => { 
+                if self.reg(rs1) != self.reg(rs2) {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
+
+            Instruction::Blt  { rs1, rs2, imm } => { todo!(); }
+            Instruction::Bge  { rs1, rs2, imm } => { 
+                if self.reg(rs1) >= self.reg(rs2) {
+                    let target = current_pc.wrapping_add(imm as i64 as u64);
+                    self.set_reg(Reg::Pc, target);
+                }
+            }
+
+            Instruction::Bltu { rs1, rs2, imm } => { todo!(); }
+            Instruction::Bgeu { rs1, rs2, imm } => { todo!(); }
+            Instruction::Lb  { rd, rs1, imm } => { todo!(); }
+            Instruction::Lh  { rd, rs1, imm } => { todo!(); }
+            Instruction::Lw  { rd, rs1, imm } => { todo!(); }
+            Instruction::Lbu { rd, rs1, imm } => { todo!(); }
+            Instruction::Lhu { rd, rs1, imm } => { todo!(); }
+            Instruction::Lwu { rd, rs1, imm } => { todo!(); }
+            Instruction::Ld  { rd, rs1, imm } => { todo!(); }
+            Instruction::Sb { rs1, rs2, imm } => { todo!(); }
+            Instruction::Sh { rs1, rs2, imm } => { todo!(); }
+
+            Instruction::Sw { rs1, rs2, imm } => { 
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let value = self.reg(rs2) as u32;
+                self.mmu.write_u32(addr, value);
+            }
+
+            Instruction::Sd { rs1, rs2, imm } => { 
+                let addr = self.reg(rs1)
+                    .wrapping_add(imm as i64 as u64);
+                let value = self.reg(rs2);
+                self.mmu.write_u64(addr, value);
+            }
+
+            Instruction::Addi  { rd, rs1, imm } => { 
+                let res = self.reg(rs1).wrapping_add(imm as i64 as u64);
+                self.set_reg(rd, res);
+            }
+
+            Instruction::Slti  { rd, rs1, imm } => { todo!(); }
+            Instruction::Sltiu { rd, rs1, imm } => { todo!(); }
+            Instruction::Xori  { rd, rs1, imm } => { todo!(); }
+
+            Instruction::Ori   { rd, rs1, imm } => { 
+                let res = self.reg(rs1) | imm as i64 as u64;
+                self.set_reg(rd, res);
+            }
+
+            Instruction::Andi  { rd, rs1, imm } => { todo!(); }
+
+            Instruction::Slli  { rd, rs1, shamt } => { 
+                // TODO(patrik): Wrapping?
+                let result = self.reg(rs1) << shamt;
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Srli  { rd, rs1, shamt } => { todo!(); }
+            Instruction::Srai  { rd, rs1, shamt } => { todo!(); }
+
+            Instruction::Addiw { rd, rs1, imm } => { 
+                let result = (self.reg(rs1) as u32)
+                    .wrapping_add(imm as u32);
+                self.set_reg(rd, result as i32 as i64 as u64);
+            }
+
+            Instruction::Slliw { rd, rs1, shamt } => { todo!(); }
+            Instruction::Srliw { rd, rs1, shamt } => { todo!(); }
+            Instruction::Sraiw { rd, rs1, shamt } => { todo!(); }
+
+            Instruction::Add  { rd, rs1, rs2 } => { 
+                let result = self.reg(rs1).wrapping_add(self.reg(rs2));
+                self.set_reg(rd, result);
+            }
+
+            Instruction::Sub  { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Sll  { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Slt  { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Sltu { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Xor  { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Srl  { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Sra  { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Or   { rd, rs1, rs2 } => { todo!(); }
+            Instruction::And  { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Addw { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Subw { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Sllw { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Srlw { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Sraw { rd, rs1, rs2 } => { todo!(); }
+            Instruction::Fence {} => { }
+
+            Instruction::Ecall => {
+                const CSR_MTVEC: u16 = 0x305;
+
+                let pc = self.csr[CSR_MTVEC as usize];
+                self.set_reg(Reg::Pc, pc);
+            }
+
+            Instruction::Ebreak => { todo!(); }
+            Instruction::Sret => { todo!(); }
+            Instruction::Mret => {
+                // TODO(patrik): Not correct 
+                const CSR_MEPC: u16 = 0x341;
+                const CSR_MCAUSE: u16 = 0x342;
+
+                self.csr[CSR_MCAUSE as usize] = 11;
+
+                let pc = self.csr[CSR_MEPC as usize];
+                self.set_reg(Reg::Pc, pc);
+            }
+
+            Instruction::Csrrw { rd, rs1, csr } => {
+                if rd != Reg::X0 {
+                    let old = self.csr[csr as usize];
+                    self.set_reg(rd, old);
+                }
+
+                self.csr[csr as usize] = self.reg(rs1);
+            }
+
+            Instruction::Csrrs { rd, rs1, csr } => {
+                let old = self.csr[csr as usize];
+                self.set_reg(rd, old);
+
+                if rs1 != Reg::X0 {
+                    self.csr[csr as usize] = old | self.reg(rs1);
+                }
+            }
+
+            Instruction::Csrrc { rd, rs1, csr } => { todo!(); }
+
+            Instruction::Csrrwi { rd, uimm, csr } => {
+                if rd != Reg::X0 {
+                    let old = self.csr[csr as usize];
+                    self.set_reg(rd, old);
+                }
+
+                self.csr[csr as usize] = uimm as u64;
+            }
+
+            Instruction::Csrrsi { rd, uimm, csr } => { todo!(); }
+            Instruction::Csrrci { rd, uimm, csr } => { todo!(); }
+
+            /*
             Instruction::Lui { rd, imm } => {
                 self.set_reg(rd, imm as i64 as u64);
             }
@@ -162,6 +339,7 @@ impl TestingHart {
             }
 
             _ => panic!("Not implemented: {:x?}", inst),
+            */
         }
     }
 
@@ -175,7 +353,7 @@ impl TestingHart {
     }
 }
 
-impl Hart for TestingHart {
+impl Hart for SimpleHart {
     /// Get value from register
     fn reg(&self, reg: Reg) -> u64 {
         self.registers[reg.index()]

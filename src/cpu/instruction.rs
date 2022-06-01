@@ -144,7 +144,6 @@ impl Instruction {
     pub fn decode(inst: u32) -> Result<Self> {
         let opcode = inst & 0x7f;
         let opcode = Opcode::try_from(opcode)?;
-        println!("Opcode: {:?}", opcode);
 
         return match opcode {
             Opcode::Lui => {
