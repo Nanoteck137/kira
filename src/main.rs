@@ -71,6 +71,40 @@ fn run_test(test: &str) -> Result<(), u32> {
 
 }
 
+fn run_program() {
+    let mut path = PathBuf::from("./test/a.out"); 
+    let file_data = read_file_to_vec(path);
+
+    let e = elf::Elf::parse(&file_data).unwrap();
+    // println!("Elf: {:#?}", e);
+
+    let memory = TestingMemory::new(100 * 1024 * 1024);
+    let mut mmu = TestingMmu::new(memory);
+
+    for program_header in e.program_header_iter() {
+        if program_header.typ() == elf::ProgramHeaderTyp::Load {
+            let data = e.program_header_data(program_header)
+                .expect("Failed to get program header data");
+            // println!("{:#x?}: {:#x}", program_header, data.len());
+
+            for index in 0..data.len() {
+                let addr = program_header.vaddr() + index as u64;
+                let value = data[index];
+                mmu.write_u8(addr, value);
+            }
+        }
+    }
+
+    let mut hart = SimpleHart::new(Box::new(mmu));
+    hart.set_reg(Reg::Pc, e.entry());
+    // hart.dump();
+
+    loop {
+        // hart.dump();
+        hart.step();
+    }
+}
+
 fn main() {
     let tests = [
         "rv64ui-p-add",
@@ -134,5 +168,7 @@ fn main() {
             Err(num) => println!("Failed at test#{}", num),
         }
     }
+
+    run_program();
 
 }
