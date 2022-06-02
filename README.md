@@ -1,5 +1,18 @@
 # kira
 
+# RISC-V Toolchain
+
+```
+git clone riscv-toolchain
+cd riscv-toolchain
+./configure --prefix=/opt/riscv --enable-multilib
+make
+# No permission to /opt/riscv 
+sudo make
+```
+
+# RISC-V Tests
+
 # Types
 
 | Name | 31-25  | 24-20 | 19-15 | 12-14  | 7-11 | 6-0    |
