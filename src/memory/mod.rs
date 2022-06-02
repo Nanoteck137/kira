@@ -122,6 +122,14 @@ impl Mmu for TestingMmu {
 
     /// Write to memory
     fn write(&mut self, addr: u64, value: u64, width: TypeWidth) {
+        if addr == 0x1000 {
+            print!("{}", value as u8 as char);
+            use std::io::Write;
+            std::io::stdout().flush().unwrap();
+            
+            return;
+        }
+
         if addr >= MEMORY_OFFSET &&
             addr < MEMORY_OFFSET + self.memory.len() as u64
         {
